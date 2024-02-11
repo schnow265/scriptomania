@@ -1,7 +1,13 @@
-# scriptomania-{group}-{subgroup}
+# scriptomania-{group}
 
-## What does this do?
+## Why does this exist?
 
 ```text
-describe here what this script does
+Explain why this exists.
+```
+
+## Lists of scripts
+
+```text
+List all scripts in this group
 ```
