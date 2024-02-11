@@ -1,0 +1,40 @@
+{
+    "$schema": "https://aka.ms/winget-packages.schema.1.0.json",
+    "WinGetVersion": "0.3.11201",
+    "Sources": [
+        {
+            "Packages": [
+                {
+                    "Id": "Microsoft.VisualStudioCode",
+                    "Version": "1.86.1"
+                },
+                {
+                    "Id": "Microsoft.WindowsTerminal",
+                    "Version": "1.19.10302.0"
+                },
+                {
+                    "Id": "Notepad++.Notepad++",
+                    "Version": "8.6.2"
+                },
+                {
+                    "Id": "Mozilla.Firefox",
+                    "Version": "122.0.1"
+                },
+                {
+                    "Id": "Mozilla.Firefox.DeveloperEdition",
+                    "Version": "120.0b6"
+                },
+                {
+                    "Id": "Git.Git",
+                    "Version": "2.43.0"
+                }
+            ],
+            "SourceDetails": {
+                "Argument": "https://winget.azureedge.net/cache",
+                "Identifier": "Microsoft.Winget.Source_8wekyb3d8bbwe",
+                "Name": "winget",
+                "Type": "Microsoft.PreIndexed.Package"
+            }
+        }
+    ]
+}

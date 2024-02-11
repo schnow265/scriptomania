@@ -9,3 +9,4 @@ Scriptomania is my collection of often used scripts.
 - buildscripts
 - docker
 - ffmpeg
+- win
