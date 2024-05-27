@@ -6,6 +6,8 @@ It only exists because I have been hoarding scripts for many media actions all o
 
 ## Lists of scripts
 
+- audibly-upset
+- audiobooking
 - chaptering
 - merger
 - vid2aac

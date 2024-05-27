@@ -10,11 +10,11 @@ This script was intended for CentOS/RHEL/Fedora.
 
 ### The two scripts
 
-This folder contains two files:
+This folder contains three files:
 
 - ``build.sh``, which builds ffmpeg
 - ``update.sh``, which you need to run when you want to update your homegrown ffmpeg build to the latest version.
-
+- ``ulti.sh``, which throws as much codecs as possible into ffmpeg.
 ## Other Links
 
 - [ffmpeg compilation guide](https://trac.ffmpeg.org/wiki/CompilationGuide/Centos)
