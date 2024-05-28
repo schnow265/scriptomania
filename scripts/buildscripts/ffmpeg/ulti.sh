@@ -1,232 +1,198 @@
 #!/bin/bash
 
-# Install development tools and basic dependencies
-sudo dnf groupinstall -y "Development Tools"
-sudo dnf install -y git wget cmake autoconf automake libtool \
-  bzip2 bzip2-devel freetype-devel fribidi-devel gnutls-devel \
-  gsm-devel lame-devel libass-devel libtheora-devel libvorbis-devel \
-  xz-devel numactl-devel nasm yasm pkgconfig meson ninja-build
+# Define the directories
+SOURCE_DIR=~/ffmpeg_sources
+BUILD_DIR=~/ffmpeg_build
 
-# Create a directory for the source code
-mkdir -p ~/ffmpeg_sources
-cd ~/ffmpeg_sources
+# Create the directories if they don't exist
+mkdir -pv "$SOURCE_DIR"
+mkdir -pv "$BUILD_DIR"
 
-# Clone and build libaom (AV1 codec)
-git clone --depth 1 https://aomedia.googlesource.com/aom
-mkdir -p aom_build
-cd aom_build
-cmake ../aom -DENABLE_SHARED=off -DCMAKE_BUILD_TYPE=Release
-make
-sudo make install
-cd ..
+# Function to check if a lockfile exists
+is_locked() {
+    local component=$1
+    local lockfile="$BUILD_DIR/$component.lock"
+    [ -f "$lockfile" ]
+}
 
-# Clone and build SVT-AV1 (another AV1 codec)
-git clone --branch v1.0.0 --depth 1 https://gitlab.com/AOMediaCodec/SVT-AV1.git
-cd SVT-AV1/Build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-make
-sudo make install
-cd ../..
+# Function to create a lockfile
+create_lock() {
+    local component=$1
+    local lockfile="$BUILD_DIR/$component.lock"
+    touch "$lockfile"
+}
 
-# Clone and build dav1d (AV1 decoder)
-git clone --depth 1 https://code.videolan.org/videolan/dav1d.git
-mkdir -p dav1d_build
-cd dav1d_build
-meson setup .. --buildtype release --default-library static
-ninja
-sudo ninja install
-cd ..
+# Install necessary build tools
+sudo dnf install -y git autoconf automake cmake gcc gcc-c++ \
+    libtool make nasm pkgconfig yasm zlib-devel xorg-x11-util-macros \
+    gnutls-devel libunistring-devel openjpeg2-devel
 
-# Clone and build libzimg (scaling and conversion library)
-git clone --depth 1 https://github.com/sekrit-twc/zimg.git
-cd zimg
-./autogen.sh
-./configure --prefix="/usr/local" --disable-shared
-make
-sudo make install
-cd ..
+# Enable RPMFusion repositories if not already enabled
+sudo dnf install -y \
+    https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
+    https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
 
-# Clone and build other optional dependencies
+# Install codec libraries and dependencies from the repositories
+sudo dnf install -y \
+    x264-devel \
+    x265-devel \
+    fdk-aac-devel \
+    lame-devel \
+    opus-devel \
+    libvpx-devel \
+    libass-devel \
+    libtheora-devel \
+    libvorbis-devel \
+    libvmaf-devel \
+    libbluray-devel \
+    libv4l-devel \
+    openjpeg2-devel \
+    libmfx-devel \
+    librsvg2-devel \
+    fribidi-devel \
+    libxcb-devel \
+    xcb-util-devel \
+    xcb-util-wm-devel \
+    xcb-util-image-devel \
+    freetype-devel \
+    fontconfig-devel \
+    libxml2-devel \
+    alsa-lib-devel \
+    SDL2-devel \
+    speex-devel \
+    libwebp-devel \
+    zimg-devel \
+    rubberband-devel \
+    xcb-proto \
+    xcb-util \
+    xcb-util-keysyms \
+    xcb-util-renderutil
 
-# libfdk-aac
-git clone --depth 1 https://github.com/mstorsjo/fdk-aac
-cd fdk-aac
-autoreconf -fiv
-./configure --prefix="/usr/local" --disable-shared
-make
-sudo make install
-cd ..
+cd "$SOURCE_DIR"
 
-# libopus
-git clone --depth 1 https://gitlab.xiph.org/xiph/opus.git
-cd opus
-./autogen.sh
-./configure --prefix="/usr/local" --disable-shared
-make
-sudo make install
-cd ..
+# Build and install libaom (AV1) if not already compiled
+if ! is_locked "libaom"; then
+    echo ">>> Building and installing libaom (AV1)..."
+    git clone https://aomedia.googlesource.com/aom "$SOURCE_DIR/aom"
+    mkdir -p "$SOURCE_DIR/aom_build"
+    cd "$SOURCE_DIR/aom_build"
+    cmake ../aom -DCMAKE_INSTALL_PREFIX="$BUILD_DIR" -DENABLE_SHARED=off
+    make -j$(nproc)
+    make install
+    create_lock "libaom"
+    cd ../..
+else
+    echo ">>> libaom (AV1) already compiled. Skipping..."
+fi
 
-# libvpx
-git clone --depth 1 https://chromium.googlesource.com/webm/libvpx
-cd libvpx
-./configure --prefix="/usr/local" --disable-examples --disable-unit-tests --disable-shared
-make
-sudo make install
-cd ..
+# Build and install libsoxr if not already compiled
+if ! is_locked "libsoxr"; then
+    echo ">>> Building and installing libsoxr..."
+    git clone https://git.code.sf.net/p/soxr/code "$SOURCE_DIR/soxr"
+    mkdir -p "$SOURCE_DIR/soxr/build"
+    cd "$SOURCE_DIR/soxr/build"
+    cmake .. -DCMAKE_INSTALL_PREFIX="$BUILD_DIR" -DBUILD_SHARED_LIBS=OFF
+    make -j$(nproc)
+    make install
+    create_lock "libsoxr"
+    cd ../..
+else
+    echo ">>> libsoxr already compiled. Skipping..."
+fi
 
-# x264
-git clone --depth 1 https://code.videolan.org/videolan/x264.git
-cd x264
-./configure --prefix="/usr/local" --disable-shared
-make
-sudo make install
-cd ..
+# Build and install libvpx if not already compiled
+if ! is_locked "libvpx"; then
+    echo ">>> Building and installing libvpx..."
+    git clone https://chromium.googlesource.com/webm/libvpx "$SOURCE_DIR/libvpx"
+    cd "$SOURCE_DIR/libvpx"
+    ./configure --prefix="$BUILD_DIR" --disable-examples --disable-unit-tests
+    make -j$(nproc)
+    make install
+    create_lock "libvpx"
+    cd ..
+else
+    echo ">>> libvpx already compiled. Skipping..."
+fi
 
-# x265
-hg clone https://bitbucket.org/multicoreware/x265
-cd x265/build/linux
-cmake -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="/usr/local" -DENABLE_SHARED=off ../../source
-make
-sudo make install
-cd ../../..
+# Build and install SVT-AV1 if not already compiled
+if ! is_locked "SVT-AV1"; then
+    echo ">>> Building and installing SVT-AV1..."
+    git clone https://gitlab.com/AOMediaCodec/SVT-AV1.git "$SOURCE_DIR/SVT-AV1"
+    mkdir -p "$SOURCE_DIR/SVT-AV1/build"
+    cd "$SOURCE_DIR/SVT-AV1/build"
+    cmake .. -DCMAKE_INSTALL_PREFIX="$BUILD_DIR" -DBUILD_SHARED_LIBS=OFF
+    make -j$(nproc)
+    make install
+    create_lock "SVT-AV1"
+    cd ../..
+else
+    echo ">>> SVT-AV1 already compiled. Skipping..."
+fi
 
-# libsoxr (SoX resampler library)
-git clone https://github.com/chirlu/soxr.git
-cd soxr
-mkdir build
-cd build
-cmake .. -DCMAKE_INSTALL_PREFIX="/usr/local"
-make
-sudo make install
-cd ../..
+# Clone the FFmpeg source if not already cloned
+if [ ! -d "$SOURCE_DIR/ffmpeg" ]; then
+    cd "$SOURCE_DIR"
 
-# libbluray
-git clone --depth 1 https://code.videolan.org/videolan/libbluray.git
-cd libbluray
-./bootstrap
-./configure --prefix="/usr/local" --disable-shared
-make
-sudo make install
-cd ..
+    # Download FFmpeg source snapshot
+    curl -O -L https://ffmpeg.org/releases/ffmpeg-snapshot.tar.bz2
+    tar xjvf ffmpeg-snapshot.tar.bz2
+fi
 
-# libbs2b
-git clone --depth 1 https://github.com/alex-gee/libbs2b.git
-cd libbs2b
-./configure --prefix="/usr/local" --disable-shared
-make
-sudo make install
-cd ..
+# Configure, build, and install FFmpeg if not already compiled
+if ! is_locked "ffmpeg"; then
+    echo ">>> Configuring FFmpeg build..."
+    cd "$SOURCE_DIR/ffmpeg"
+    PATH="$HOME/bin:$PATH" PKG_CONFIG_PATH="$HOME/ffmpeg_build/lib/pkgconfig" ./configure \
+        --prefix="$BUILD_DIR" \
+        --pkg-config-flags="--static" \
+        --extra-cflags="-I$BUILD_DIR/include" \
+        --extra-ldflags="-L$BUILD_DIR/lib" \
+        --extra-libs="-lpthread -lm" \
+        --bindir="$HOME/bin" \
+        --enable-gpl \
+        --enable-version3 \
+        --enable-static \
+        --disable-debug \
+        --disable-shared \
+        --enable-libx264 \
+        --enable-libx265 \
+        --enable-libfdk_aac \
+        --enable-libmp3lame \
+        --enable-libopus \
+        --enable-libvpx \
+        --enable-libaom \
+        --enable-libass \
+        --enable-libtheora \
+        --enable-libvorbis \
+        --enable-libvmaf \
+        --enable-libbluray \
+        --enable-libsoxr \
+        --enable-libsvtav1 \
+        --enable-librsvg \
+        --enable-libfribidi \
+        --enable-libmfx \
+        --enable-libspeex \
+        --enable-libwebp \
+        --enable-libzimg \
+        --enable-librubberband \
+        --enable-gnutls \
+        --enable-libfreetype \
+        --enable-libfontconfig \
+        --enable-libxml2 \
+        --enable-alsa \
+        --enable-libxcb \
+        --enable-libxcb-shm \
+        --enable-libxcb-xfixes \
+        --enable-nonfree
+    echo ">>> Building and installing FFmpeg..."
+    make -j$(nproc)
+    make install
+    create_lock "ffmpeg"
+    echo ">>> FFmpeg has been built and installed successfully."
+else
+    echo ">>> FFmpeg already compiled. Skipping..."
+fi
 
-# libcaca
-git clone --depth 1 https://github.com/cacalabs/libcaca.git
-cd libcaca
-./bootstrap
-./configure --prefix="/usr/local" --disable-shared
-make
-sudo make install
-cd ..
-
-# libcdio
-git clone --depth 1 https://git.savannah.gnu.org/git/libcdio.git
-cd libcdio
-./bootstrap
-./configure --prefix="/usr/local" --disable-shared
-make
-sudo make install
-cd ..
-
-# libdrm
-git clone --depth 1 https://gitlab.freedesktop.org/mesa/drm.git
-cd drm
-meson setup build --prefix=/usr/local --libdir=lib --default-library=static
-meson compile -C build
-sudo meson install -C build
-cd ..
-
-# libkvazaar
-git clone --depth 1 https://github.com/ultravideo/kvazaar.git
-cd kvazaar
-./autogen.sh
-./configure --prefix="/usr/local" --disable-shared
-make
-sudo make install
-cd ..
-
-# libmfx
-git clone --depth 1 https://github.com/lu-zero/mfx_dispatch.git
-cd mfx_dispatch
-mkdir build
-cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local
-make
-sudo make install
-cd ../..
-
-# openh264
-git clone --depth 1 https://github.com/cisco/openh264.git
-cd openh264
-make -j4
-sudo make install PREFIX=/usr/local
-cd ..
-
-# openjpeg
-git clone --depth 1 https://github.com/uclouvain/openjpeg.git
-cd openjpeg
-mkdir build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local
-make
-sudo make install
-cd ../..
-
-# librubberband
-git clone --depth 1 https://github.com/breakfastquay/rubberband.git
-cd rubberband
-mkdir build
-cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local
-make
-sudo make install
-cd ../..
-
-# libspeex
-git clone --depth 1 https://gitlab.xiph.org/xiph/speex.git
-cd speex
-./autogen.sh
-./configure --prefix=/usr/local --disable-shared
-make
-sudo make install
-cd ..
-
-# libzvbi
-git clone --depth 1 https://gitlab.freedesktop.org/zvbi/libzvbi.git
-cd libzvbi
-./autogen.sh
-./configure --prefix=/usr/local --disable-shared
-make
-sudo make install
-cd ..
-
-# ffmpeg
-git clone --depth 1 https://git.ffmpeg.org/ffmpeg.git ffmpeg
-cd ffmpeg
-./configure --prefix="/usr/local" --pkg-config-flags="--static" \
-  --extra-cflags="-I/usr/local/include" --extra-ldflags="-L/usr/local/lib" \
-  --extra-libs="-lpthread -lm" --bindir="/usr/local/bin" \
-  --enable-gpl --enable-nonfree --enable-libfdk_aac --enable-libfreetype \
-  --enable-libfribidi --enable-libmp3lame --enable-libopus --enable-libtheora \
-  --enable-libvpx --enable-libx264 --enable-libx265 --enable-libaom --enable-libsvtav1 \
-  --enable-libbz2 --enable-libbluray --enable-libbs2b --enable-libcaca --enable-libcdio \
-  --enable-libdrm --enable-libkvazaar --enable-libmfx --enable-libopenh264 \
-  --enable-libopenjpeg --enable-librubberband --enable-libsoxr --enable-libspeex \
-  --enable-libzimg --enable-libzvbi --enable-libdav1d
-make
-sudo make install
-
-# Refresh shared library cache
-sudo ldconfig
-
-# Verify ffmpeg installation
-ffmpeg -version
-
-echo "FFmpeg and its dependencies have been successfully installed!"
+# Execute the ffmpeg binary
+echo ">>> Executing ffmpeg binary..."
+~/bin/ffmpeg
