@@ -2,11 +2,11 @@
 
 pkgs.stdenv.mkDerivation rec {
   pname = "ffmpeg";
-  version = "7.0.1"; # Specify the FFmpeg version you want to build
+  version = "7.0.1";
 
   src = pkgs.fetchurl {
     url = "https://ffmpeg.org/releases/ffmpeg-${version}.tar.bz2";
-    sha256 = "XnfoS2Q01lYQb6/jvOzMdxdkSQFPProk0z2z+9CTnck="; # Update with the correct hash
+    sha256 = "XnfoS2Q01lYQb6/jvOzMdxdkSQFPProk0z2z+9CTnck=";
   };
 
   buildInputs = [
@@ -60,7 +60,7 @@ pkgs.stdenv.mkDerivation rec {
       --enable-libtheora \
       --enable-libvorbis \
       --enable-libvmaf \
-      #--enable-libbluray \
+      --enable-libbluray \
       --enable-libv4l2 \
       --enable-libopenjpeg \
       --enable-libmfx \

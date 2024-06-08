@@ -5,4 +5,5 @@ in
 {
   ffmpeg = pkgs.callPackage ./ffmpeg.nix { };
   libaom = pkgs.callPackage ./codecs/libaom.nix { };
+  ffbasic = pkgs.callPackage ./ffbasic.nix { };
 }
