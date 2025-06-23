@@ -15,3 +15,78 @@ sock = "sock:main"
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
+[tool.ruff]
+cache-dir = "~/.cache/ruff"
+extend-exclude = [".venv"]
+line-length = 320
+
+[tool.ruff.format]
+preview = true
+
+[tool.ruff.lint]
+preview = true
+ignore = [
+    "NPY201", # we are fixed to numpy version 1.23.3
+    "S404", # i know. I am aware.
+    "COM812", # formatter conflict. and who uses this?
+]
+
+extend-select = [
+    "A",
+    "ANN",
+    "ARG",
+    "ASYNC",
+    "B",
+    "BLE",
+    "C4",
+    "C90",
+    "COM",
+    "E",
+    "EM",
+    "ERA",
+    "F",
+    "FA",
+    "FBT",
+    "FIX",
+    "FLY",
+    "FURB",
+    "I",
+    "ICN",
+    "INT",
+    "N",
+    "NPY",
+    "PERF",
+    "PGH",
+    "PIE",
+    "PL",
+    "PLC",
+    "PLE",
+    "PLR",
+    "PLW",
+    "PTH",
+    "PYI",
+    "Q",
+    "RET",
+    "RSE",
+    "RUF",
+    "SIM",
+    "SLF",
+    "SLOT",
+    "T20",
+    "TC",
+    "TD",
+    "TID",
+    "TRY",
+    "UP",
+    "W",
+    "YTT",
+]
+
+[tool.ruff.lint.pylint]
+max-positional-args = 6
+max-args = 6
+
+[dependency-groups]
+dev = [
+    "ruff>=0.12.0",
+]
