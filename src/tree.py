@@ -22,13 +22,11 @@ def parse_package_name(package: str) -> str:
 
 async def get_package_dependencies(package: str, show_recommends: bool = False, show_suggests: bool = False) -> Dict[str, List[str]]:
     """
-    Returns a dict with keys: "Depends", "Recommends", "Suggests".
-    Each key maps to a list of packages.
+    Returns a dict with keys: "Depends", "Recommends", "Suggests" for normal mode.
     """
     package = parse_package_name(package)
     logger.debug(f"Getting dependencies for {package}")
     try:
-        # Wrap check_output in a lambda to provide keyword arguments
         output = await trio.to_thread.run_sync(
             lambda: subprocess.check_output(
                 ["apt-cache", "depends", package],
@@ -37,24 +35,58 @@ async def get_package_dependencies(package: str, show_recommends: bool = False, 
             )
         )
     except subprocess.CalledProcessError as e:
-        logger.error(f"Error occured when checking dependencies for {package}:\n{e}")
+        logger.error(f"Error occurred when checking dependencies for {package}:\n{e}")
         return {"Depends": [], "Recommends": [], "Suggests": []}
     deps = {"Depends": [], "Recommends": [], "Suggests": []}
     for line in output.splitlines():
         line = line.strip()
         if line.startswith("Depends:"):
-            dep = line.split(":", 1)[1].strip()
-            dep = dep.split(" | ")[0].strip()
+            dep = line.split(":", 1)[1].strip().split(" | ")[0].strip()
             deps["Depends"].append(dep)
         elif show_recommends and line.startswith("Recommends:"):
-            dep = line.split(":", 1)[1].strip()
-            dep = dep.split(" | ")[0].strip()
+            dep = line.split(":", 1)[1].strip().split(" | ")[0].strip()
             deps["Recommends"].append(dep)
         elif show_suggests and line.startswith("Suggests:"):
-            dep = line.split(":", 1)[1].strip()
-            dep = dep.split(" | ")[0].strip()
+            dep = line.split(":", 1)[1].strip().split(" | ")[0].strip()
             deps["Suggests"].append(dep)
     return deps
+
+async def get_reverse_dependencies(package: str) -> List[str]:
+    """
+    Returns a list of packages which depend (directly) on the given package.
+    """
+    package = parse_package_name(package)
+    logger.debug(f"Getting reverse dependencies for {package}")
+    try:
+        output = await trio.to_thread.run_sync(
+            lambda: subprocess.check_output(
+                ["apt-cache", "rdepends", package],
+                text=True,
+                stderr=subprocess.DEVNULL
+            )
+        )
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Error occurred when checking reverse dependencies for {package}:\n{e}")
+        return []
+    rdeps = set()
+    recording = False
+    for line in output.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if line.startswith("Reverse Depends:"):
+            recording = True
+            continue
+        if recording:
+            # Lines are packages, indented or not
+            pkg = line.strip()
+            if pkg and not pkg.startswith(" "):
+                pkg = pkg.split(" ", 1)[0]
+            pkg = parse_package_name(pkg)
+            if pkg and pkg != package:
+                rdeps.add(pkg)
+    logger.debug(f"Reverse dependencies for {package}: {rdeps}")
+    return list(sorted(rdeps))
 
 async def build_dep_tree(
     package: str,
@@ -138,10 +170,32 @@ async def build_dep_tree_optional(
             else:
                 await build_dep_tree_optional(dep, visited, branch, all_branches, "green", "suggests", show_recommends, show_suggests)
 
+async def build_reverse_tree(
+    package: str,
+    visited: Set[str],
+    parent_tree: Tree,
+    all_branches: Dict[str, Tree],
+    nursery: Any = None
+):
+    if package in visited:
+        parent_tree.add(f"[yellow]{package}[/yellow] [dim](already listed)")
+        return
+    visited.add(package)
+    branch = parent_tree.add(f"[bold]{package}[/bold]")
+    all_branches[package] = branch
+
+    rdeps = await get_reverse_dependencies(package)
+    logger.debug(f"Package '{package}': {len(rdeps)} reverse dependencies")
+    for rdep in rdeps:
+        if nursery:
+            nursery.start_soon(build_reverse_tree, rdep, visited, branch, all_branches, nursery)
+        else:
+            await build_reverse_tree(rdep, visited, branch, all_branches)
+
 @logger.catch
 def main():
     parser = argparse.ArgumentParser(
-        description="Display a Debian dependency tree with optional/recommended dependencies colorized (async with trio)."
+        description="Display a Debian dependency tree or reverse dependency tree (async with trio)."
     )
     parser.add_argument(
         "package_file",
@@ -158,6 +212,11 @@ def main():
         action="store_true",
         help="Show suggested dependencies in the tree"
     )
+    parser.add_argument(
+        "--reverse", "-R",
+        action="store_true",
+        help="Show reverse dependency tree (list packages which depend on the input packages)"
+    )
     args = parser.parse_args()
 
     try:
@@ -169,19 +228,25 @@ def main():
 
     visited = set()
     all_branches = {}
-    root = Tree("[bold]Dependency Tree[/bold]")
+    root = Tree("[bold]Dependency Tree[/bold]" if not args.reverse else "[bold]Reverse Dependency Tree[/bold]")
 
-    logger.info(f"Building tree for {len(packages)} packages")
+    logger.info(f"Building tree for {len(packages)} packages (reverse={args.reverse})")
 
     async def runner():
         async with trio.open_nursery() as nursery:
             for pkg in packages:
                 if pkg not in visited:
-                    nursery.start_soon(
-                        build_dep_tree,
-                        pkg, visited, root, all_branches,
-                        args.recommends, args.suggests, nursery
-                    )
+                    if args.reverse:
+                        nursery.start_soon(
+                            build_reverse_tree,
+                            pkg, visited, root, all_branches, nursery
+                        )
+                    else:
+                        nursery.start_soon(
+                            build_dep_tree,
+                            pkg, visited, root, all_branches,
+                            args.recommends, args.suggests, nursery
+                        )
 
     trio.run(runner)
     print(root)
