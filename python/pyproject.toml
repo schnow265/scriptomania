@@ -10,6 +10,7 @@ dependencies = [
 
 [project.scripts]
 sock = "sock:main"
+pkgfind = "find:main"
 
 [build-system]
 requires = ["setuptools"]
