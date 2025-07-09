@@ -1,18 +1,40 @@
 [project]
 name = "scriptomania"
 version = "0.1.0"
-description = "Add your description here"
+description = "Collection of scripts"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = "==3.12.*"
 dependencies = [
+    "pygit2>=1.18.0",
+    "docker>=7.1.0",
     "loguru>=0.7.3",
     "rich>=14.0.0",
     "trio>=0.30.0",
+    "scriptomania-unix; sys_platform == 'linux'",
+    "toml>=0.10.2",
+    "transformers>=4.53.1",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.12.2",
+]
+
+[tool.uv.sources]
+scriptomania-unix = { workspace = true }
+
+[tool.uv.workspace]
+members = [
+    "modules/unix",
 ]
 
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
+
+[project.scripts]
+scriptomania = "scriptomania.launcher.main:main"
+workenv = "scriptomania.git.workenv:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -87,8 +109,3 @@ extend-select = [
 [tool.ruff.lint.pylint]
 max-positional-args = 6
 max-args = 6
-
-[dependency-groups]
-dev = [
-    "ruff>=0.12.0",
-]
