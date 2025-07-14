@@ -2,7 +2,11 @@
 name = "scriptomania-unix"
 version = "0.1.0"
 requires-python = "==3.12.*"
-dependencies = []
+dependencies = [
+    "loguru>=0.7.3",
+    "rich>=14.0.0",
+    "trio>=0.30.0",
+]
 
 [project.scripts]
 dpkg-find = "scriptomania.unix.dpkg.find:main"
